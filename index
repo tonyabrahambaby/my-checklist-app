@@ -1,194 +1,13 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Construction Checklist Creator</title>
+    <title>Safety</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- jsPDF-AutoTable plugin -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .card {
-            transition: all 0.3s ease-in-out;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-        .btn {
-            transition: all 0.2s ease-in-out;
-        }
-        .btn:hover {
-            transform: scale(1.05);
-        }
-        #generatedHtmlContainer {
-            display: none;
-        }
-        .feedback-msg {
-            transition: opacity 0.5s ease-in-out;
-        }
-        .section-container {
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
-            padding: 1rem;
-            margin-top: 1.5rem;
-            background-color: #f9fafb;
-        }
-        #signature-pad {
-            border: 2px dashed #ccc;
-            border-radius: 0.5rem;
-            cursor: crosshair;
-        }
-    </style>
-</head>
-<body class="bg-gray-100 text-gray-800">
-
-    <div class="container mx-auto p-4 md:p-8 max-w-3xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Construction Checklist Creator</h1>
-            <p class="text-lg text-gray-600 mt-2">Design and generate interactive checklists for field inspections.</p>
-        </header>
-
-        <main class="space-y-8">
-            <!-- Creator Form Section -->
-            <div class="bg-white p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 border-b pb-3">1. Project Information</h2>
-                <div class="grid grid-cols-1 gap-4">
-                    <input type="text" id="projectCode" placeholder="Project Code" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <input type="text" id="projectTitle" placeholder="Project Title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <input type="text" id="checklistTitle" placeholder="Checklist Title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div class="flex justify-between items-center mt-8 mb-6 border-b pb-3">
-                    <h2 class="text-2xl font-semibold">2. Build Checklist</h2>
-                    <button onclick="document.getElementById('json-upload').click()" class="btn bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 text-sm">Open Saved Template</button>
-                    <input type="file" id="json-upload" class="hidden" accept="application/json" onchange="loadJson(event)">
-                </div>
-                <div id="sectionsContainer" class="space-y-6">
-                    <!-- Dynamic sections will be added here -->
-                </div>
-                <button onclick="addSection()" class="btn mt-6 w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold shadow hover:bg-green-700">Add New Section</button>
-            </div>
-
-            <!-- Generated HTML Section -->
-            <div class="bg-white p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 border-b pb-3">3. Generate & Share</h2>
-                <button id="generateBtn" onclick="generateChecklist()" class="btn w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-bold text-lg shadow-lg hover:bg-indigo-700 mb-4">
-                    Generate Interactive Checklist
-                </button>
-                
-                <div id="generatedHtmlContainer">
-                    <textarea id="htmlOutput" class="w-full h-64 p-3 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm" readonly></textarea>
-                    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button onclick="copyHtml()" class="btn w-full bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-800">Copy Code</button>
-                        <button onclick="downloadHtml()" class="btn w-full bg-teal-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-teal-600">Download Checklist</button>
-                        <button onclick="saveJson()" class="btn w-full bg-orange-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-orange-600">Save Template</button>
-                    </div>
-                     <p id="copy-success-msg" class="feedback-msg text-green-600 text-center mt-2 opacity-0 font-medium">Copied to clipboard!</p>
-                     <p id="download-success-msg" class="feedback-msg text-teal-600 text-center mt-2 opacity-0 font-medium">Download started!</p>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <script>
-        let sectionCounter = 0;
-        let questionCounter = 0;
-
-        function addSection(title = '') {
-            sectionCounter++;
-            const container = document.getElementById('sectionsContainer');
-            const sectionId = `section-${sectionCounter}`;
-
-            const sectionDiv = document.createElement('div');
-            sectionDiv.className = 'section-container card';
-            sectionDiv.id = sectionId;
-
-            sectionDiv.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                    <input type="text" placeholder="Section Title" class="section-title text-lg font-semibold w-full p-2 border border-gray-300 rounded-md" value="${title}">
-                    <button onclick="removeSection('${sectionId}')" class="ml-4 text-red-500 hover:text-red-700 font-bold text-2xl">&times;</button>
-                </div>
-                <div class="questions-container space-y-4"></div>
-                <button onclick="addQuestion('${sectionId}')" class="btn mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg font-semibold shadow hover:bg-blue-600 text-sm">Add Question</button>
-            `;
-            container.appendChild(sectionDiv);
-            return sectionId;
-        }
-        
-        function removeSection(sectionId) {
-            document.getElementById(sectionId)?.remove();
-        }
-
-        function addQuestion(sectionId, text = '', type = 'yesno') {
-            questionCounter++;
-            const container = document.querySelector(`#${sectionId} .questions-container`);
-            const questionId = `question-${questionCounter}`;
-
-            const questionCard = document.createElement('div');
-            questionCard.className = 'bg-white p-4 border border-gray-200 rounded-lg shadow-sm';
-            questionCard.id = questionId;
-
-            questionCard.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
-                    <input type="text" placeholder="Enter your question here..." class="w-full p-2 border border-gray-300 rounded-md question-text" value="${text}">
-                    <button onclick="removeQuestion('${questionId}')" class="ml-2 text-red-500 hover:text-red-700 font-bold text-xl">&times;</button>
-                </div>
-                <div class="flex items-center mt-2">
-                     <label class="text-sm font-medium text-gray-700 mr-2">Answer Type:</label>
-                     <select class="question-type p-2 border border-gray-300 rounded-md text-sm">
-                         <option value="yesno" ${type === 'yesno' ? 'selected' : ''}>Yes/No/NA</option>
-                         <option value="text" ${type === 'text' ? 'selected' : ''}>Data Entry</option>
-                         <option value="truefalse" ${type === 'truefalse' ? 'selected' : ''}>True/False</option>
-                     </select>
-                </div>
-            `;
-            container.appendChild(questionCard);
-        }
-
-        function removeQuestion(questionId) {
-            document.getElementById(questionId)?.remove();
-        }
-
-        function generateChecklist() {
-            const escapeHTML = (str) => str ? str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&quot;').replace(/'/g, '&#039;') : '';
-
-            const projectData = {
-                projectCode: document.getElementById('projectCode').value,
-                projectTitle: document.getElementById('projectTitle').value,
-                checklistTitle: document.getElementById('checklistTitle').value,
-                sections: []
-            };
-
-            document.querySelectorAll('.section-container').forEach(sectionEl => {
-                const sectionData = {
-                    title: sectionEl.querySelector('.section-title').value,
-                    questions: []
-                };
-                sectionEl.querySelectorAll('.questions-container > div').forEach(questionEl => {
-                    sectionData.questions.push({
-                        text: questionEl.querySelector('.question-text').value,
-                        type: questionEl.querySelector('.question-type').value
-                    });
-                });
-                projectData.sections.push(sectionData);
-            });
-
-            const template = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${escapeHTML(projectData.checklistTitle)}</title>
-    <script src="https://cdn.tailwindcss.com"><\/script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"><\/script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style> 
         body { font-family: 'Inter', sans-serif; } 
@@ -202,16 +21,11 @@
     </div>
     
     <script id="checklist-data" type="application/json">
-        __CHECKLIST_DATA__
-    <\/script>
+        {"projectCode":"RK90","projectTitle":"FDR widening","checklistTitle":"Safety","sections":[{"title":"General","questions":[{"text":"Safe?","type":"yesno"},{"text":"How","type":"text"}]},{"title":"MPT","questions":[{"text":"Now","type":"truefalse"}]}]}
+    </script>
 
     <script>
-        __CHECKLIST_LOGIC__
-    <\/script>
-</body>
-</html>
-`;
-            const checklistLogic = `
+        
         window.jsPDF = window.jspdf.jsPDF;
 
         let currentSlide = 0;
@@ -222,13 +36,13 @@
         function buildSlides() {
             const root = document.getElementById('checklistRoot');
             
-            let headerHtml = \`
+            let headerHtml = `
                 <header id="mainHeader" class="bg-white p-6 rounded-xl shadow-md mb-8 border border-gray-200 text-center">
-                    <p class="text-lg text-gray-500 font-mono">\${checklistData.projectCode}</p>
-                    <h1 class="text-3xl font-bold text-gray-900 mt-2">\${checklistData.projectTitle}</h1>
-                    <h2 class="text-2xl font-semibold text-gray-700 mt-1">\${checklistData.checklistTitle}</h2>
+                    <p class="text-lg text-gray-500 font-mono">${checklistData.projectCode}</p>
+                    <h1 class="text-3xl font-bold text-gray-900 mt-2">${checklistData.projectTitle}</h1>
+                    <h2 class="text-2xl font-semibold text-gray-700 mt-1">${checklistData.checklistTitle}</h2>
                 </header>
-            \`;
+            `;
 
             let formHtml = '<form id="inspectionForm">';
 
@@ -241,11 +55,11 @@
                     let hour12 = hour24 % 12;
                     hour12 = hour12 ? hour12 : 12; // the hour '0' should be '12'
                     const timeString = hour12.toString().padStart(2, '0') + ':' + minute + ' ' + ampm;
-                    timeOptions += \`<option value="\${timeString}">\${timeString}</option>\`;
+                    timeOptions += `<option value="${timeString}">${timeString}</option>`;
                 }
             }
 
-            formHtml += \`
+            formHtml += `
                 <div class="slide bg-white p-6 rounded-xl shadow-md border border-gray-200" data-slide-type="start">
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Inspection Details</h2>
                     <div class="space-y-4">
@@ -254,12 +68,12 @@
                         <div><label class="font-semibold">Location:</label><input type="text" id="locationInput" class="w-full p-2 border rounded-md mt-1"></div>
                         <div><label class="font-semibold">Contractor/Subcontractor:</label><input type="text" id="contractorInput" class="w-full p-2 border rounded-md mt-1"></div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div><label class="font-semibold">Start Time:</label><select id="startTimeInput" class="w-full p-2 border rounded-md mt-1">\${timeOptions}</select></div>
-                            <div><label class="font-semibold">End Time:</label><select id="endTimeInput" class="w-full p-2 border rounded-md mt-1">\${timeOptions}</select></div>
+                            <div><label class="font-semibold">Start Time:</label><select id="startTimeInput" class="w-full p-2 border rounded-md mt-1">${timeOptions}</select></div>
+                            <div><label class="font-semibold">End Time:</label><select id="endTimeInput" class="w-full p-2 border rounded-md mt-1">${timeOptions}</select></div>
                         </div>
                         <div><label class="font-semibold">Description of Work:</label><textarea id="workDescriptionInput" class="w-full p-2 border rounded-md mt-1" rows="3"></textarea></div>
                     </div>
-                </div>\`;
+                </div>`;
             
             let questionIndex = 0;
             checklistData.sections.forEach((section, sectionIndex) => {
@@ -269,42 +83,42 @@
                         let answerHtml = '';
                         switch (q.type) {
                             case 'text':
-                                answerHtml = \`<textarea name="q\${questionIndex}_answer" class="w-full p-2 border border-gray-300 rounded-md mt-2" placeholder="Enter notes..."></textarea>\`;
+                                answerHtml = `<textarea name="q${questionIndex}_answer" class="w-full p-2 border border-gray-300 rounded-md mt-2" placeholder="Enter notes..."></textarea>`;
                                 break;
                             case 'yesno':
-                                answerHtml = \`
+                                answerHtml = `
                                     <div class="flex space-x-4 mt-2 text-sm">
-                                        <label class="flex items-center"><input type="radio" name="q\${questionIndex}_answer" value="Yes" class="mr-1"> Yes</label>
-                                        <label class="flex items-center"><input type="radio" name="q\${questionIndex}_answer" value="No" class="mr-1"> No</label>
-                                        <label class="flex items-center"><input type="radio" name="q\${questionIndex}_answer" value="NA" class="mr-1"> N/A</label>
-                                    </div>\`;
+                                        <label class="flex items-center"><input type="radio" name="q${questionIndex}_answer" value="Yes" class="mr-1"> Yes</label>
+                                        <label class="flex items-center"><input type="radio" name="q${questionIndex}_answer" value="No" class="mr-1"> No</label>
+                                        <label class="flex items-center"><input type="radio" name="q${questionIndex}_answer" value="NA" class="mr-1"> N/A</label>
+                                    </div>`;
                                 break;
                             case 'truefalse':
-                                 answerHtml = \`
+                                 answerHtml = `
                                     <div class="flex space-x-4 mt-2 text-sm">
-                                        <label class="flex items-center"><input type="radio" name="q\${questionIndex}_answer" value="True" class="mr-1"> True</label>
-                                        <label class="flex items-center"><input type="radio" name="q\${questionIndex}_answer" value="False" class="mr-1"> False</label>
-                                    </div>\`;
+                                        <label class="flex items-center"><input type="radio" name="q${questionIndex}_answer" value="True" class="mr-1"> True</label>
+                                        <label class="flex items-center"><input type="radio" name="q${questionIndex}_answer" value="False" class="mr-1"> False</label>
+                                    </div>`;
                                 break;
                         }
 
-                        formHtml += \`
-                            <div class="slide bg-white p-6 rounded-xl shadow-md border border-gray-200 hidden" data-slide-type="question" data-section-index="\${sectionIndex}" data-section-title="\${section.title}" data-question-text="\${q.text}" data-is-first-question="\${qIndex === 0}" data-question-in-section="\${qIndex + 1}" data-total-in-section="\${section.questions.length}">
-                                <p class="text-2xl font-bold text-gray-800 mb-2">\${section.title}</p>
-                                <p class="text-sm text-gray-500">Question \${qIndex + 1} of \${section.questions.length}</p>
-                                <p class="font-semibold text-gray-800 mt-4 text-lg">\${q.text}</p>
-                                <div class="mt-4">\${answerHtml}</div>
+                        formHtml += `
+                            <div class="slide bg-white p-6 rounded-xl shadow-md border border-gray-200 hidden" data-slide-type="question" data-section-index="${sectionIndex}" data-section-title="${section.title}" data-question-text="${q.text}" data-is-first-question="${qIndex === 0}" data-question-in-section="${qIndex + 1}" data-total-in-section="${section.questions.length}">
+                                <p class="text-2xl font-bold text-gray-800 mb-2">${section.title}</p>
+                                <p class="text-sm text-gray-500">Question ${qIndex + 1} of ${section.questions.length}</p>
+                                <p class="font-semibold text-gray-800 mt-4 text-lg">${q.text}</p>
+                                <div class="mt-4">${answerHtml}</div>
                                 <div class="mt-4">
                                     <label class="font-semibold text-gray-700 text-sm">Notes:</label>
-                                    <textarea name="q\${questionIndex}_notes" class="w-full p-2 border border-gray-300 rounded-md mt-1" placeholder="Add optional notes..."></textarea>
+                                    <textarea name="q${questionIndex}_notes" class="w-full p-2 border border-gray-300 rounded-md mt-1" placeholder="Add optional notes..."></textarea>
                                 </div>
-                            </div>\`;
+                            </div>`;
                     });
                 }
             });
             totalQuestions = questionIndex;
 
-            formHtml += \`
+            formHtml += `
                 <div class="slide bg-white p-6 rounded-xl shadow-md border border-gray-200 hidden" data-slide-type="final" data-section-title="General Notes">
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">General Notes</h2>
                     <textarea id="generalNotes" class="w-full p-2 border border-gray-300 rounded-md" rows="6" placeholder="Enter any additional general notes or comments here..."></textarea>
@@ -324,10 +138,10 @@
                     <canvas id="signature-pad" width="400" height="200"></canvas>
                     <button type="button" onclick="clearSignature()" class="mt-2 text-sm text-blue-600 hover:underline">Clear Signature</button>
                 </div>
-            \`;
+            `;
             formHtml += '</form>';
             
-            let controlsHtml = \`
+            let controlsHtml = `
                 <div id="progressContainer" class="mt-8">
                     <div class="flex justify-between mb-1"><span id="progressText" class="text-base font-medium text-gray-700"></span></div>
                     <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div></div>
@@ -342,7 +156,7 @@
                     <button id="pdfButton" onclick="generatePdf()" class="mt-4 bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:bg-indigo-700">Save & Share</button>
                     <div id="loader" class="hidden mt-4"><p class="text-lg text-indigo-600">Generating PDF...</p></div>
                 </div>
-            \`;
+            `;
 
             root.innerHTML = headerHtml + formHtml + controlsHtml;
             slides.push(...document.querySelectorAll('.slide'));
@@ -387,9 +201,9 @@
                  document.getElementById('progressBar').style.width = '0%';
             } else if (slideType === 'question') {
                 const remainingQuestions = slides.filter((s, i) => i >= n && s.dataset.slideType === 'question' && s.dataset.skipped !== 'true').length;
-                 document.getElementById('progressText').innerText = \`\${slides[n].dataset.sectionTitle} - Question \${questionInSection} of \${totalInSection} (\${remainingQuestions} total remaining)\`;
+                 document.getElementById('progressText').innerText = `${slides[n].dataset.sectionTitle} - Question ${questionInSection} of ${totalInSection} (${remainingQuestions} total remaining)`;
                  const completedQuestions = totalQuestions - remainingQuestions;
-                 document.getElementById('progressBar').style.width = \`\${(completedQuestions / totalQuestions) * 100}%\`;
+                 document.getElementById('progressBar').style.width = `${(completedQuestions / totalQuestions) * 100}%`;
             } else {
                  document.getElementById('progressText').innerText = slides[n].dataset.sectionTitle || 'Final Steps';
                  document.getElementById('progressBar').style.width = '100%';
@@ -469,7 +283,7 @@
             const div = document.createElement('div');
             div.id = findingId;
             div.className = 'p-2 border rounded-md bg-gray-50';
-            div.innerHTML = \`<div class="flex justify-between items-center mb-2"><label class="font-semibold text-sm">Finding #\${findingCounter}</label><button type="button" onclick="document.getElementById('\${findingId}').remove()" class="text-red-500 font-bold">&times;</button></div><textarea class="w-full p-2 border rounded-md finding-text" placeholder="Describe finding..."></textarea><select class="w-full p-2 border rounded-md mt-2 finding-status"><option>Work in Progress</option><option>Resolved</option></select>\`;
+            div.innerHTML = `<div class="flex justify-between items-center mb-2"><label class="font-semibold text-sm">Finding #${findingCounter}</label><button type="button" onclick="document.getElementById('${findingId}').remove()" class="text-red-500 font-bold">&times;</button></div><textarea class="w-full p-2 border rounded-md finding-text" placeholder="Describe finding..."></textarea><select class="w-full p-2 border rounded-md mt-2 finding-status"><option>Work in Progress</option><option>Resolved</option></select>`;
             container.appendChild(div);
         }
         
@@ -481,7 +295,7 @@
             const div = document.createElement('div');
             div.id = photoId;
             div.className = 'p-2 border rounded-md bg-gray-50 photo-entry';
-            div.innerHTML = \`<div class="flex justify-between items-center mb-2"><label class="font-semibold text-sm">Photo #\${photoCounter}</label><button type="button" onclick="document.getElementById('\${photoId}').remove()" class="text-red-500 font-bold">&times;</button></div><input type="file" class="w-full text-sm photo-input" accept="image/*" onchange="previewPhoto(this)"><img class="mt-2 rounded-lg max-w-xs hidden photo-preview" alt="Photo preview"><input type="text" class="w-full p-2 border rounded-md mt-2 photo-caption" placeholder="Enter caption...">\`;
+            div.innerHTML = `<div class="flex justify-between items-center mb-2"><label class="font-semibold text-sm">Photo #${photoCounter}</label><button type="button" onclick="document.getElementById('${photoId}').remove()" class="text-red-500 font-bold">&times;</button></div><input type="file" class="w-full text-sm photo-input" accept="image/*" onchange="previewPhoto(this)"><img class="mt-2 rounded-lg max-w-xs hidden photo-preview" alt="Photo preview"><input type="text" class="w-full p-2 border rounded-md mt-2 photo-caption" placeholder="Enter caption...">`;
             container.appendChild(div);
         }
         
@@ -629,7 +443,7 @@
                 }
 
                 if (notes) {
-                    answer += '\\n\\nNotes: ' + notes;
+                    answer += '\n\nNotes: ' + notes;
                 }
 
                 tableData.push([questionNumber, questionText, answer]);
@@ -639,7 +453,7 @@
                 body: [
                     [{ content: 'Location:', styles: { fontStyle: 'bold' } }, location],
                     [{ content: 'Contractor/Sub:', styles: { fontStyle: 'bold' } }, document.getElementById('contractorInput').value],
-                    [{ content: 'Work Hours:', styles: { fontStyle: 'bold' } }, \`\${startTime} to \${endTime}\`],
+                    [{ content: 'Work Hours:', styles: { fontStyle: 'bold' } }, `${startTime} to ${endTime}`],
                     [{ content: 'Description of Work:', styles: { fontStyle: 'bold' } }, workDescription],
                 ],
                 startY: 40,
@@ -776,14 +590,14 @@
                  doc.setFontSize(10);
                  doc.setFont(undefined, 'normal');
                  doc.text(inspectorName, 14, 105);
-                 doc.text(\`Signed: \${signingDateStr} at \${signingTimeStr}\`, 14, 112);
+                 doc.text(`Signed: ${signingDateStr} at ${signingTimeStr}`, 14, 112);
             }
 
             addHeaderAndFooter(doc);
 
             const dateForFilename = new Date(inspectionDateRaw + 'T00:00:00');
             const formattedDateFilename = (dateForFilename.getMonth() + 1).toString().padStart(2, '0') + '-' + dateForFilename.getDate().toString().padStart(2, '0') + '-' + dateForFilename.getFullYear();
-            const safeFileName = \`\${checklistData.projectCode} - \${checklistData.checklistTitle} - \${formattedDateFilename} - \${inspectorName}\`.replace(/[^a-zA-Z0-9-]/g, '_');
+            const safeFileName = `${checklistData.projectCode} - ${checklistData.checklistTitle} - ${formattedDateFilename} - ${inspectorName}`.replace(/[^a-zA-Z0-9-]/g, '_');
 
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             if (isIOS) {
@@ -797,114 +611,7 @@
         }
 
         buildSlides();
-    `;
-            const finalHtml = template.replace('__CHECKLIST_DATA__', JSON.stringify(projectData))
-                                        .replace('__CHECKLIST_LOGIC__', checklistLogic);
-            document.getElementById('htmlOutput').value = finalHtml;
-            document.getElementById('generatedHtmlContainer').style.display = 'block';
-        }
-
-        function copyHtml() {
-            const htmlOutput = document.getElementById('htmlOutput');
-            htmlOutput.select();
-            document.execCommand('copy');
-            const msg = document.getElementById('copy-success-msg');
-            msg.style.opacity = 1;
-            setTimeout(() => { msg.style.opacity = 0; }, 2000);
-        }
-
-        function downloadHtml() {
-            const htmlContent = document.getElementById('htmlOutput').value;
-            const date = new Date();
-            const formattedDate = (date.getMonth() + 1).toString().padStart(2, '0') + '-' + date.getDate().toString().padStart(2, '0') + '-' + date.getFullYear();
-            const fileName = `${document.getElementById('projectCode').value || 'project'}-${document.getElementById('checklistTitle').value || 'checklist'}-${formattedDate}`;
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `${fileName}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            const msg = document.getElementById('download-success-msg');
-            msg.style.opacity = 1;
-            setTimeout(() => { msg.style.opacity = 0; }, 2000);
-        }
-
-        function saveJson() {
-            const data = {
-                projectCode: document.getElementById('projectCode').value,
-                projectTitle: document.getElementById('projectTitle').value,
-                checklistTitle: document.getElementById('checklistTitle').value,
-                sections: []
-            };
-
-            document.querySelectorAll('.section-container').forEach(sectionEl => {
-                const sectionData = {
-                    title: sectionEl.querySelector('.section-title').value,
-                    questions: []
-                };
-                sectionEl.querySelectorAll('.questions-container > div').forEach(questionEl => {
-                    sectionData.questions.push({
-                        text: questionEl.querySelector('.question-text').value,
-                        type: questionEl.querySelector('.question-type').value
-                    });
-                });
-                data.sections.push(sectionData);
-            });
-
-            const jsonString = JSON.stringify(data, null, 2);
-            const date = new Date();
-            const formattedDate = (date.getMonth() + 1).toString().padStart(2, '0') + '-' + date.getDate().toString().padStart(2, '0') + '-' + date.getFullYear();
-            const fileName = `${data.projectCode || 'project'}-${data.checklistTitle || 'checklist'}-${formattedDate}-template data`;
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `${fileName}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        function loadJson(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    
-                    document.getElementById('sectionsContainer').innerHTML = '';
-                    sectionCounter = 0;
-                    questionCounter = 0;
-
-                    document.getElementById('projectCode').value = data.projectCode || '';
-                    document.getElementById('projectTitle').value = data.projectTitle || '';
-                    document.getElementById('checklistTitle').value = data.checklistTitle || '';
-
-                    if (data.sections) {
-                        data.sections.forEach(sectionData => {
-                            const newSectionId = addSection(sectionData.title);
-                            if (sectionData.questions) {
-                                sectionData.questions.forEach(questionData => {
-                                    addQuestion(newSectionId, questionData.text, questionData.type);
-                                });
-                            }
-                        });
-                    }
-                } catch (error) {
-                    console.error("Error parsing JSON file:", error);
-                    const msg = document.createElement('p');
-                    msg.textContent = 'Invalid JSON file. Please check the file and try again.';
-                    msg.className = 'text-red-500 text-center font-bold my-4';
-                    document.getElementById('generatedHtmlContainer').prepend(msg);
-                    setTimeout(() => msg.remove(), 5000);
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        }
+    
     </script>
 </body>
 </html>
